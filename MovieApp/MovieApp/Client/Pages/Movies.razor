@@ -1,0 +1,83 @@
+﻿@page "/movies"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.WebAssembly.Authentication
+@attribute [Authorize]
+@inject HttpClient httpClient
+@inject NavigationManager navManager
+@inject IJSRuntime JsRuntime
+<h3>Movies</h3>
+<div>
+    <h3>In theaters</h3>
+    <MoviesList Movies="MoviesList" />
+    @foreach (var movie in MoviesList){
+     <p>@movie.TitleBrief</p>
+    <button @onclick="@(() => Delete(movie.Id))">Delete</button>
+    }
+</div>
+<h3>Add a movie</h3>
+<EditForm Model="Movie" OnSubmit="createMovie">
+    <DataAnnotationsValidator/>
+    <ValidationSummary/>
+    <label>Summary:</label>
+    <InputText @bind-Value="@Movie.Summary"/>
+    <ValidationMessage For="@(()=>Movie.Summary)"/>
+    <label>Trailer:</label>
+    <InputText @bind-Value="@Movie.Trailer" />
+    <ValidationMessage For="@(()=>Movie.Trailer)" />
+    
+    <label>Poster:</label>
+    <InputText @bind-Value="@Movie.Poster" />
+</EditForm>
+@code {
+    [Parameter]
+    public Movie Movie { get; set; }
+
+    private List<Movie> MoviesList;
+    protected async override Task OnInitializedAsync()
+    {
+        await GetMovies();
+        Movie = new Movie();
+    }
+
+    private async Task GetMovies()
+    {
+        var responseHTTP = await httpClient.GetAsync("https://localhost:44311/api/movies");
+
+        if (responseHTTP.IsSuccessStatusCode)
+        {
+            var responseString = await responseHTTP.Content.ReadAsStringAsync();
+            MoviesList = System.Text.Json.JsonSerializer.Deserialize<List<Movie>>(responseString, new System.Text.Json.JsonSerializerOptions() { PropertyNameCaseInsensitive = true });
+        }
+        else
+        {
+            await JsRuntime.InvokeVoidAsync("alert", "Wrong Data!");
+        }
+    }
+    private async Task createMovie(EditContext context)
+    {
+        if (context.Validate())
+        {
+            var post = await httpClient.PostAsJsonAsync("https://localhost:44311/api/movies",Movie);
+        }
+        else
+        {
+           
+        await JsRuntime.InvokeVoidAsync("alert", "Wrong Data!"); 
+        }
+    }
+    async Task Delete(int ID)
+    {
+
+        
+        bool a = await JsRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to delete this student?");
+        if (a)
+        {
+
+           MoviesList.RemoveAll(movie => movie.Id == ID);
+
+        }
+    }
+    //Dodaj możliwość wyświetlenia szczegółów filmu/edycji
+    //Dodaj możliwość usuwania filmu
+}
+
